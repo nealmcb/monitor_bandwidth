@@ -40,7 +40,10 @@ def main():
     admin_username = config['DEFAULT']['admin_username']
     admin_password = config['DEFAULT']['admin_password']
 
-    s.post(data={'admin_username': admin_username, 'admin_password': admin_password})
+    loginurl = "http://192.168.0.1/login.cgi"
+
+    s = requests.Session()
+    s.post(loginurl, data={'admin_username': admin_username, 'admin_password': admin_password})
 
     dslRxByteTotal = 30
     dslTxByte1Total = 31
