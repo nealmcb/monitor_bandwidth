@@ -34,72 +34,83 @@ class Unbuffered(object):
         return getattr(self.stream, attr)
 
 
-def new_session():
-    "returns a new logged-in requests session"
+class DSL:
+    def __init__(self, url):
+        self.url = url
+        self.timestamp = None
+        self.rxbw = None
 
-    config_file = os.path.join(os.path.expanduser("~"), '.config', 'monitor_bw', 'config.ini')
-    config = configparser.ConfigParser()
-    config.read(config_file)
+    def new_session(self):
+        "returns a new logged-in requests session"
 
-    admin_username = config['DEFAULT']['admin_username']
-    admin_password = config['DEFAULT']['admin_password']
+        config_file = os.path.join(os.path.expanduser("~"), '.config', 'monitor_bw', 'config.ini')
+        config = configparser.ConfigParser()
+        config.read(config_file)
 
-    loginurl = "http://192.168.0.1/login.cgi"
+        admin_username = config['DEFAULT']['admin_username']
+        admin_password = config['DEFAULT']['admin_password']
 
-    s = requests.Session()
-    r = s.post(loginurl, data={'admin_username': admin_username, 'admin_password': admin_password})
-    assert r.status_code == 200, f"Failed login at {loginurl}: {r}"
+        loginurl = "http://192.168.0.1/login.cgi"
 
-    return s
+        s = requests.Session()
+        r = s.post(loginurl, data={'admin_username': admin_username, 'admin_password': admin_password})
+        assert r.status_code == 200, f"Failed login at {loginurl}: {r}"
 
+        return s
 
-def get_dsl_stats(s, url):
-    "return dslstats from given url"
+    def get_dsl_stats(self, s):
+        "update dslstats using given session"
 
-    r = s.get(url)
-    if r.status_code != 200  or  "||" not in r.text:
-        s = new_session()
-        r = s.get(staturl)
-    # print(content)
-    dslstats = r.text.split('||')
-    # print(dslstats)
+        dslRxByteTotal = 30
+        dslTxByte1Total = 31
 
-
-
-def monitor():
-    sys.stdout = Unbuffered(sys.stdout)
-
-    dslRxByteTotal = 30
-    dslTxByte1Total = 31
-
-    s = new_session()
-
-    lasttx = {}
-    lastrx = {}
-
-    while True:
-      for staturl in ["http://192.168.0.1/GetDslStatus.html", "http://192.168.0.1/GetDslStatus2.html"]:
-
-        r = s.get(staturl)
+        r = s.get(self.url)
         if r.status_code != 200  or  "||" not in r.text:
-            s = new_session()
-            r = s.get(staturl)
+            s = self.new_session()
+            r = s.get(self.url)
         # print(content)
+
         dslstats = r.text.split('||')
+
+        timestamp = datetime.now()
+
+        rx_total = float(dslstats[dslRxByteTotal])
+        tx_total = float(dslstats[dslTxByte1Total])
+
+        if self.timestamp:
+            self.rxbw = (rx_total - self.lastrx) / (timestamp - self.timestamp).seconds
+            #print(self.rxbw)
+
+        self.timestamp = timestamp
+        self.lastrx = rx_total
+        self.lasttx = tx_total
+
         # print(dslstats)
-        timestamp = datetime.isoformat(datetime.now())
 
-        timestamp = datetime.isoformat(datetime.now())
+        return s
 
-        lastrx[staturl] = dslstats[dslRxByteTotal]
-        lasttx[staturl] = dslstats[dslTxByte1Total]
 
-        #timestamp},{dslstats[dslRxByteTotal]},{}")
+class Modem:
+    def __init__(self, dslurl1, dslurl2):
+        self.s = requests.Session()
+        self.dsl1 = DSL(dslurl1)
+        self.dsl2 = DSL(dslurl2)
 
-        print(f"{timestamp},{dslstats[dslRxByteTotal]},{dslstats[dslTxByte1Total]}")
 
-      time.sleep(10)
+    def monitor(self):
+
+        while True:
+            self.s = self.dsl1.get_dsl_stats(self.s)
+            self.s = self.dsl2.get_dsl_stats(self.s)
+
+            ts = datetime.isoformat(self.dsl1.timestamp)
+            print(f"{ts},{self.dsl1.rxbw},{self.dsl1.lastrx},{self.dsl1.lasttx},{self.dsl2.lastrx},{self.dsl2.lasttx}")
+
+            time.sleep(10)
 
 
 if __name__ == "__main__":
-    monitor()
+    sys.stdout = Unbuffered(sys.stdout)
+
+    modem = Modem("http://192.168.0.1/GetDslStatus.html", "http://192.168.0.1/GetDslStatus2.html")
+    modem.monitor()
