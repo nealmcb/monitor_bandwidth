@@ -38,7 +38,8 @@ class DSL:
     def __init__(self, url):
         self.url = url
         self.timestamp = None
-        self.rxbw = None
+        self.rxbw = 0.0
+        self.txbw = 0.0
 
     def new_session(self):
         "returns a new logged-in requests session"
@@ -68,7 +69,6 @@ class DSL:
         if r.status_code != 200  or  "||" not in r.text:
             s = self.new_session()
             r = s.get(self.url)
-        # print(content)
 
         dslstats = r.text.split('||')
 
@@ -78,8 +78,10 @@ class DSL:
         tx_total = float(dslstats[dslTxByte1Total])
 
         if self.timestamp:
-            self.rxbw = (rx_total - self.lastrx) / (timestamp - self.timestamp).seconds
-            #print(self.rxbw)
+            dt = (timestamp - self.timestamp).seconds
+
+            self.rxbw = (rx_total - self.lastrx) / dt
+            self.txbw = (tx_total - self.lasttx) / dt
 
         self.timestamp = timestamp
         self.lastrx = rx_total
@@ -99,14 +101,17 @@ class Modem:
 
     def monitor(self):
 
+        print("ts,dsl1_rxbw,dsl2_rxbw,dsl1_txbw,dsl2_txbw,dsl1_lastrx,dsl2_lastrx,dsl1_lasttx,dsl2_lasttx")
+
         while True:
             self.s = self.dsl1.get_dsl_stats(self.s)
             self.s = self.dsl2.get_dsl_stats(self.s)
 
             ts = datetime.isoformat(self.dsl1.timestamp)
-            print(f"{ts},{self.dsl1.rxbw},{self.dsl1.lastrx},{self.dsl1.lasttx},{self.dsl2.lastrx},{self.dsl2.lasttx}")
+            print(f"{ts},{self.dsl1.rxbw:.5f},{self.dsl2.rxbw:.5f},{self.dsl1.txbw:.5f},{self.dsl2.txbw:.5f},{self.dsl1.lastrx},{self.dsl2.lastrx},{self.dsl1.lasttx},{self.dsl2.lasttx}")
 
-            time.sleep(10)
+            #time.sleep(7)  # include a few seconds for taking data
+            time.sleep(97)  # include a few seconds for taking data
 
 
 if __name__ == "__main__":
