@@ -14,13 +14,11 @@ import os.path
 import configparser
 import time
 import requests
-from requests_file import FileAdapter
-from bs4 import BeautifulSoup, SoupStrainer
 from datetime import datetime
 
 
 class Unbuffered(object):
-    "From Seb: https://stackoverflow.com/a/107717/507544"
+    "Used to produce unbuffered output. From Seb: https://stackoverflow.com/a/107717/507544"
 
     def __init__(self, stream):
         self.stream = stream
@@ -35,6 +33,8 @@ class Unbuffered(object):
 
 
 class DSL:
+    "Represent one of the two bonded DSL lines used by the Zyxel"
+
     def __init__(self, url):
         self.url = url
         self.timestamp = None
@@ -42,7 +42,7 @@ class DSL:
         self.txbw = 0.0
 
     def new_session(self):
-        "returns a new logged-in requests session"
+        "Returns a new logged-in requests session"
 
         config_file = os.path.join(os.path.expanduser("~"), '.config', 'monitor_bw', 'config.ini')
         config = configparser.ConfigParser()
@@ -60,7 +60,7 @@ class DSL:
         return s
 
     def get_dsl_stats(self, s):
-        "update dslstats using given session"
+        "Capture and calculate latest data using given session"
 
         dslRxByteTotal = 30
         dslTxByte1Total = 31
@@ -93,6 +93,8 @@ class DSL:
 
 
 class Modem:
+    "A Zyzel C3000Z *broadband modem"
+
     def __init__(self, dslurl1, dslurl2):
         self.s = requests.Session()
         self.dsl1 = DSL(dslurl1)
@@ -110,8 +112,8 @@ class Modem:
             ts = datetime.isoformat(self.dsl1.timestamp)
             print(f"{ts},{self.dsl1.rxbw:.5f},{self.dsl2.rxbw:.5f},{self.dsl1.txbw:.5f},{self.dsl2.txbw:.5f},{self.dsl1.lastrx},{self.dsl2.lastrx},{self.dsl1.lasttx},{self.dsl2.lasttx}")
 
-            #time.sleep(7)  # include a few seconds for taking data
-            time.sleep(97)  # include a few seconds for taking data
+            time.sleep(7)  # include a few seconds for taking data
+            #time.sleep(97)  # include a few seconds for taking data
 
 
 if __name__ == "__main__":
