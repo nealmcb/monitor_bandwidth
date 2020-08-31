@@ -1,0 +1,10 @@
+# Show a plot of the output of monitor_bw.py
+# Usage: show_bandwidth [tail args]
+# E.g. show_bandwidth -1000 monitor.csv
+
+(
+ echo 'ts,dsl1_rxbw,dsl2_rxbw,dsl1_txbw,dsl2_txbw,dsl1_lastrx,dsl1_lasttx,dsl2_lastrx,dsl2_lasttx'
+ tail "$@"
+) | ./plot.py
+
+eog monitor.png
